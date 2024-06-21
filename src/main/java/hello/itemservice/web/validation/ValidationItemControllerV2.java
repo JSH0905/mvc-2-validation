@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -42,37 +45,43 @@ public class ValidationItemControllerV2 {
         return "validation/v2/addForm";
     }
 
+    /**
+     * ValidationItemControllerV2 변경사항
+     * BindingResult : 스프링이 제공하는 검증 오류를 보관하는 객체. 400에러 발생시에도 일단 컨트롤러 호출(오류페이지 x)
+     * 메서드의 매개변수의 BindingResult 추가 -> 기존의 error 해시맵을 대체
+     * BindingResult의 addError 메서드로 모델명, 필드이름, 오류메시지 내용 전달.
+     * 글로벌 오류같은 경우는 Object Error를 쓰면된다.
+     * BindingResult는 검증확인시 isEmpty -> hasError() 사용
+     * BindingResult는 자동으로 뷰에 넘어감. 따라서 model.attribute로 추가 안해줘도됨.
+     * 메서드 파라미터 위치가 중요! -> @ModelAttribute Item item, BindingResult bindingResult 이렇게 모델에 붙여서 바로와야함.
+     */
+
     @PostMapping("/add")
-    public String addItem(@ModelAttribute Item item, RedirectAttributes redirectAttributes, Model model) {
+    public String addItemV1(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
 
-        // 검증 오류 결과를 보관
-        Map<String, String> errors = new HashMap<>();
-
-        // 검증 로직, StringUtils는 스프링꺼 사용할것
         if (!StringUtils.hasText(item.getItemName())){
-            errors.put("itemName", "상품 이름은 필수입니다.");
+            bindingResult.addError(new FieldError("item", "itemName", "상품 이름은 필수입니다."));
         }
 
         if(item.getPrice() == null || item.getPrice()<1000 || item.getPrice()>= 1000000){
-            errors.put("price", "가격은 1,000 ~ 1,000,000 까지 허용합니다.");
+            bindingResult.addError(new FieldError("item", "price", "가격은 1,000 ~ 1,000,000 까지 허용합니다."));
         }
 
         if(item.getQuantity() == null || item.getQuantity()>=9999){
-            errors.put("quantity", "수량은 최대 9,999 까지 허용합니다.");
+            bindingResult.addError(new FieldError("item", "quantity", "수량은 최대 9,999까지 혀용됩니다."));
         }
 
         // 특정 필드가 아닌 복합 룰 검증
         if(item.getPrice() != null && item.getQuantity() !=null){
             int resultPrice = item.getPrice() * item.getQuantity();
             if(resultPrice < 10000){
-                errors.put("globalError", "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice );
+                bindingResult.addError(new ObjectError("item", "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
             }
         }
 
         // 검증에 실패하면 다시 입력 폼으로
-        if(!errors.isEmpty()){
-            log.info("errors ={}", errors);
-            model.addAttribute("errors", errors);
+        if(bindingResult.hasErrors()){
+            log.info("errors ={}", bindingResult);
             return "validation/v2/addForm";
         }
 
