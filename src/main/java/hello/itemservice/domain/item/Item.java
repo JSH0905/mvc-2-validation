@@ -17,17 +17,24 @@ import javax.validation.constraints.NotNull;
 //@ScriptAssert(lang = "javascript", script = "_this.price * _this.quantity >= 10000", message = "총 합이 10000원 넘게 입력해주세요")
 public class Item {
 
+    /**
+     * Bean Validation의 한계 : 하나의 폼에서 검증방식을 여러가지로 하기로 했을 경우 문제가 생김
+     * 상품 수정시에는 ID가 @NotNull 이라는 조건을 추가하면 상품등록시 문제가 발생함.
+     * 해결방법 : 스프링에서 BeanValidation의 groups -> 실무에서는 잘 안씀 -> 실무에서는 Form 객체 분리 방법을 사용
+     */
+
+    @NotNull(groups = UpdateCheck.class) // 수정 요구사항 추가
     private Long id;
 
-    @NotBlank
+    @NotBlank(groups = {SaveCheck.class, UpdateCheck.class})
     private String itemName;
 
-    @NotNull
-    @Range(min=1000, max=1000000)
+    @NotNull(groups = {SaveCheck.class, UpdateCheck.class})
+    @Range(min=1000, max=1000000, groups = {SaveCheck.class, UpdateCheck.class})
     private Integer price;
 
-    @NotNull
-    @Max(9999)
+    @NotNull(groups = {SaveCheck.class, UpdateCheck.class})
+    @Max(value = 9999, groups = {SaveCheck.class})
     private Integer quantity;
 
     public Item() {
